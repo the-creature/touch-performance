@@ -1,0 +1,162 @@
+<!doctype html>
+<html class="en">
+    <style>
+        body {
+            margin: 0;
+        }
+
+        #draggable {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: #fdfdfd;
+            box-shadow: 0 0 20px rgba(10, 10, 10, .75);
+            cursor: move;
+        }
+
+        #data {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+
+    </style>
+
+    <body>
+        <div id="draggable"></div>
+        
+        <div id="data">
+            Direction: <span id="direction"></span><br />
+            Velocity: <span id="velocity"></span><br />
+            Distance: <span id="distance"></span>
+        </div>
+    </body>
+
+    <script type="text/javascript">
+        var offset, dimensions, firstGesture, lastGesture, transformString, animationFrame,
+            draggable = document.getElementById("draggable"),
+            direction = document.getElementById("direction"),
+            velocity = document.getElementById("velocity"),
+            interval = 25;
+
+        function dragStart(e) {
+            if (e.touches && e.touches.length > 1) return;
+
+            var position = draggable.getBoundingClientRect();
+            var pointer = e.touches ? e.touches[0] : e;
+
+            offset = {
+                left: pointer.pageX - position.left,
+                top: pointer.pageY - position.top
+            };
+            
+            dimensions = {
+                width: position.width,
+                height: position.height
+            };
+
+            firstGesture = lastGesture = {
+                position: [ pointer.pageX, pointer.pageY ],
+                timeStamp: e.timeStamp
+            };
+
+            window.addEventListener("mousemove", dragMove, false);
+            window.addEventListener("mouseup", dragEnd, false);
+
+            window.addEventListener("touchmove", dragMove, false);
+            window.addEventListener("touchend", dragEnd, false);
+
+            e.preventDefault();
+        }
+
+        function dragMove(e) {
+            var pointer = e.touches ? e.touches[0] : e;
+            var posX = pointer.pageX - offset.left;
+            var posY = pointer.pageY - offset.top;
+            var newGesture = {
+                position: [ pointer.pageX, pointer.pageY ],
+                timeStamp: e.timeStamp
+            };
+
+            if ((e.timeStamp - lastGesture.timeStamp) > interval) {
+                newGesture.velocity = calculateVelocity(lastGesture, newGesture);
+                newGesture.distance = calculateDistance(firstGesture, newGesture);
+                newGesture.direction = calculateDirection(lastGesture, newGesture);
+
+                lastGesture = newGesture;
+            }
+            
+            if (posX < 0) {
+                posX = 0;
+            } else if ((posX + dimensions.width) > window.innerWidth) {
+                posX = window.innerWidth - dimensions.width;
+            }
+
+            if (posY < 0) {
+                posY = 0;
+            } else if ((posY + dimensions.height) > window.innerHeight) {
+                posY = window.innerHeight - dimensions.height;
+            }
+
+            transformString = "translate3d(" + posX + "px, " + posY + "px, 0)";
+
+            animationFrame && window.cancelAnimationFrame(animationFrame);
+            
+            animationFrame = window.requestAnimationFrame(function() {
+                draggable.style.webkitTransform = draggable.style.transform = transformString;
+
+                direction.innerHTML = lastGesture.direction;
+                velocity.innerHTML = lastGesture.velocity;
+                distance.innerHTML = lastGesture.distance;
+            });
+
+            e.preventDefault();
+        }
+
+        function dragEnd(e) {
+            animationFrame && window.cancelAnimationFrame(animationFrame);
+
+            offset = dimensions = firstGesture = lastGesture = animationFrame = null;
+
+            direction.innerHTML = velocity.innerHTML = distance.innerHTML = "";
+
+            window.removeEventListener("mousemove", dragMove, false);
+            window.removeEventListener("mouseup", dragEnd, false);
+
+            window.removeEventListener("touchmove", dragMove, false);
+            window.removeEventListener("touchend", dragEnd, false);
+        }
+
+        function calculateDirection(start, end) {
+          var diffX = start.position[0] - end.position[0];
+          var diffY = start.position[1] - end.position[1];
+
+          return [
+              Math.abs(diffX) > 0 ? (diffX > 0 ? "left" : "right") : "N/A",
+              Math.abs(diffY) > 0 ? (diffY > 0 ? "up" : "down") : "N/A"
+          ];
+        }
+
+        function calculateVelocity(start, end) {
+          var deltaTime = end.timeStamp - start.timeStamp;
+          var ratioX = (100 / window.innerWidth) * (start.position[0] - end.position[0]);
+          var ratioY = (100 / window.innerHeight) * (start.position[1] - end.position[1]);
+
+          return [
+              Math.abs(ratioX / deltaTime).toFixed(2),
+              Math.abs(ratioY / deltaTime).toFixed(2)
+          ];
+        }
+
+        function calculateDistance(start, end) {
+            var x = end.position[0] - start.position[0];
+            var y = end.position[1] - start.position[1];
+
+            return Math.sqrt((x * x) + (y * y)).toFixed(2);
+        }
+
+        draggable.addEventListener("mousedown", dragStart, false);
+        draggable.addEventListener("touchstart", dragStart, false);
+
+    </script>
+</html>
